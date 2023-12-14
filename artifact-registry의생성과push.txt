@@ -1,0 +1,33 @@
+# 환경변수 설정
+export PROJECT_ID=$(gcloud config get-value project)
+export PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format='value(projectNumber)')
+export REGION=us-central1
+gcloud config set compute/region $REGION
+
+# 서비스 활성화
+gcloud services enable \
+  cloudresourcemanager.googleapis.com \
+  container.googleapis.com \
+  artifactregistry.googleapis.com \
+  containerregistry.googleapis.com \
+  containerscanning.googleapis.com
+
+
+# artifact registry 생성
+gcloud artifacts repositories create container-dev-repo --repository-format=docker \
+  --location=$REGION \
+  --description="Docker repository for Container Dev Workshop"
+
+# 생성된 artifact registry config.json에 등록
+#  파일은 ~.docker/config.json에 추가
+gcloud auth configure-docker $REGION-docker.pkg.dev
+
+# Dockerfile로 이미지 빌드
+export DOCKER_NAME=detector-app
+docker build -t $REGION-docker.pkg.dev/$PROJECT_ID/container-dev-repo/$DOCKER_NAME:tag1 ./
+
+#Dockerfile artifact registry에 push
+docker push $REGION-docker.pkg.dev/$PROJECT_ID/container-dev-repo/$DOCKER_NAME:tag1
+
+
+docker run -it -p 5000:5000 us-central1-docker.pkg.dev/gcp-ai-406705/container-dev-repo/detector-app:tag1 /bin/bash
